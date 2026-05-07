@@ -1,6 +1,6 @@
 [package]
 name = "axhash-indexmap"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Bagus Dwi Harianto robbymangkualam2000@gmail.com"]
 license = "MIT"
@@ -24,7 +24,7 @@ std = ["indexmap/std"]
 # ── Runtime dependencies ──────────────────────────────────────────────────────
 [dependencies]
 # AxBuildHasher lives in axhash-core; the axhash wrapper crate is not needed.
-axhash-core = "0.8.1"
+axhash-core = "0.8.2"
 
 # Disable std by default; the `std` feature re-enables it via indexmap/std.
 # `alloc` is always required — pure no_heap no_std would make IndexMap useless.
