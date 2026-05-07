@@ -17,6 +17,15 @@ cuts hashing overhead dramatically while preserving everything that makes
 `IndexMap` unique: deterministic insertion-order iteration and O(1) positional
 access via `get_index`.
 
+## Ecosystem
+
+| Crate | Description |
+|---|---|
+| `axhash` | High-performance hashing engine |
+| `axhash-map` | Fast HashMap/HashSet powered by `hashbrown` |
+| `axhash-indexmap` | Ordered maps with AxHash |
+| `axhash-dashmap` | Concurrent DashMap powered by AxHash |
+
 ```text
 ┌──────────────────────────────────────────────────────────┐
 │                   axhash-indexmap                        │
