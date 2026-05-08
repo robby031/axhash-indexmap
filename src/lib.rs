@@ -8,58 +8,24 @@ use core::fmt;
 use core::hash::{BuildHasher, BuildHasherDefault, Hash};
 use core::ops::{Deref, DerefMut, Index};
 
-// ── Re-exports ────────────────────────────────────────────────────────────────
-
-/// The [`BuildHasher`](core::hash::BuildHasher) used for seeded / custom
-/// construction via [`AxIndexMap::with_hasher`].
 pub use axhash_core::{AxBuildHasher, AxHasher};
-
-/// Raw `indexmap::IndexMap` — available without a direct `indexmap` dep.
 pub use indexmap::IndexMap as RawIndexMap;
-
-/// Raw `indexmap::IndexSet` — available without a direct `indexmap` dep.
 pub use indexmap::IndexSet as RawIndexSet;
-
-/// [`indexmap::map::Entry`] re-exported for ergonomic `match` arms.
 pub use indexmap::map::Entry as MapEntry;
 pub use indexmap::map::OccupiedEntry as MapOccupiedEntry;
 pub use indexmap::map::VacantEntry as MapVacantEntry;
 
-// ── Compatibility type aliases ────────────────────────────────────────────────
-// These expose raw `indexmap` types with `AxHasher` baked in via the
-// standard-library `BuildHasherDefault<H>` adaptor.  Because they are plain
-// type aliases (no wrapper struct), third-party crates such as Serde can
-// derive `Serialize` / `Deserialize` on structs that contain them without
-// any extra configuration.
-
-/// Drop-in `indexmap::IndexMap` with [`AxHasher`] as the default hasher.
-/// Insertion order is fully preserved.  Use this alias when maximum
-/// third-party compatibility matters (e.g. Serde `#[derive]`).
 pub type IndexMap<K, V> = RawIndexMap<K, V, BuildHasherDefault<AxHasher>>;
-
-/// Drop-in `indexmap::IndexSet` with [`AxHasher`] as the default hasher.
-/// Insertion order is fully preserved.  Use this alias when maximum
-/// third-party compatibility matters (e.g. Serde `#[derive]`).
 pub type IndexSet<T> = RawIndexSet<T, BuildHasherDefault<AxHasher>>;
 
-// ── AxIndexMap ────────────────────────────────────────────────────────────────
-/// `AxIndexMap<K, V>` is a thin newtype wrapper around [`IndexMap<K, V>`] that
-/// adds the familiar `::new()` / `::with_capacity()` constructor syntax (which
-/// `indexmap` 2.x only provides on the default-`RandomState` form).
-/// Every method on `indexmap::IndexMap` is accessible via `Deref`.
 pub struct AxIndexMap<K, V, S = BuildHasherDefault<AxHasher>>(RawIndexMap<K, V, S>);
 
 impl<K, V> AxIndexMap<K, V, BuildHasherDefault<AxHasher>> {
-    /// Creates an empty map with the default [`AxHasher`].
-    ///
-    /// The map is initially created with a capacity of 0.
     #[inline(always)]
     pub fn new() -> Self {
         Self(RawIndexMap::with_hasher(BuildHasherDefault::default()))
     }
 
-    /// Creates an empty map with at least the given capacity and the default
-    /// [`AxHasher`].
     #[inline(always)]
     pub fn with_capacity(capacity: usize) -> Self {
         Self(RawIndexMap::with_capacity_and_hasher(
@@ -70,30 +36,21 @@ impl<K, V> AxIndexMap<K, V, BuildHasherDefault<AxHasher>> {
 }
 
 impl<K, V, S: BuildHasher> AxIndexMap<K, V, S> {
-    /// Creates an empty map that uses the supplied `hasher`.
-    ///
-    /// Use this when you need a custom seed (e.g. [`AxBuildHasher::with_seed`])
-    /// or a completely different [`BuildHasher`].
     #[inline(always)]
     pub fn with_hasher(hasher: S) -> Self {
         Self(RawIndexMap::with_hasher(hasher))
     }
 
-    /// Creates an empty map with at least the given capacity that uses the
-    /// supplied `hasher`.
     #[inline(always)]
     pub fn with_capacity_and_hasher(capacity: usize, hasher: S) -> Self {
         Self(RawIndexMap::with_capacity_and_hasher(capacity, hasher))
     }
 
-    /// Consumes the wrapper and returns the underlying [`RawIndexMap`].
     #[inline(always)]
     pub fn into_inner(self) -> RawIndexMap<K, V, S> {
         self.0
     }
 }
-
-// ── Deref / DerefMut ─────────────────────────────────────────────────────────
 
 impl<K, V, S> Deref for AxIndexMap<K, V, S> {
     type Target = RawIndexMap<K, V, S>;
@@ -110,8 +67,6 @@ impl<K, V, S> DerefMut for AxIndexMap<K, V, S> {
         &mut self.0
     }
 }
-
-// ── Standard traits ───────────────────────────────────────────────────────────
 
 impl<K, V> Default for AxIndexMap<K, V, BuildHasherDefault<AxHasher>> {
     #[inline]
@@ -155,8 +110,6 @@ where
     }
 }
 
-// ── FromIterator / Extend ─────────────────────────────────────────────────────
-
 impl<K: Hash + Eq, V> FromIterator<(K, V)> for AxIndexMap<K, V, BuildHasherDefault<AxHasher>> {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         let iter = iter.into_iter();
@@ -173,8 +126,6 @@ impl<K: Hash + Eq, V, S: BuildHasher> Extend<(K, V)> for AxIndexMap<K, V, S> {
         self.0.extend(iter);
     }
 }
-
-// ── IntoIterator ──────────────────────────────────────────────────────────────
 
 impl<K, V, S> IntoIterator for AxIndexMap<K, V, S> {
     type Item = (K, V);
@@ -206,8 +157,6 @@ impl<'a, K, V, S> IntoIterator for &'a mut AxIndexMap<K, V, S> {
     }
 }
 
-// ── From conversions ──────────────────────────────────────────────────────────
-
 impl<K, V, S> From<RawIndexMap<K, V, S>> for AxIndexMap<K, V, S> {
     #[inline]
     fn from(inner: RawIndexMap<K, V, S>) -> Self {
@@ -222,27 +171,14 @@ impl<K, V, S> From<AxIndexMap<K, V, S>> for RawIndexMap<K, V, S> {
     }
 }
 
-// ── AxIndexSet ────────────────────────────────────────────────────────────────
-
-/// Insertion-ordered set backed by [indexmap] with [`AxHasher`] as the default
-/// hasher.
-///
-/// `AxIndexSet<T>` is a thin newtype wrapper around [`IndexSet<T>`] that adds
-/// the familiar `::new()` / `::with_capacity()` constructor syntax.
-/// Every method on `indexmap::IndexSet` is accessible via `Deref`.
-///
-/// [indexmap]: https://crates.io/crates/indexmap
 pub struct AxIndexSet<T, S = BuildHasherDefault<AxHasher>>(RawIndexSet<T, S>);
 
 impl<T> AxIndexSet<T, BuildHasherDefault<AxHasher>> {
-    /// Creates an empty set with the default [`AxHasher`].
     #[inline(always)]
     pub fn new() -> Self {
         Self(RawIndexSet::with_hasher(BuildHasherDefault::default()))
     }
 
-    /// Creates an empty set with at least the given capacity and the default
-    /// [`AxHasher`].
     #[inline(always)]
     pub fn with_capacity(capacity: usize) -> Self {
         Self(RawIndexSet::with_capacity_and_hasher(
@@ -253,27 +189,21 @@ impl<T> AxIndexSet<T, BuildHasherDefault<AxHasher>> {
 }
 
 impl<T, S: BuildHasher> AxIndexSet<T, S> {
-    /// Creates an empty set that uses the supplied `hasher`.
     #[inline(always)]
     pub fn with_hasher(hasher: S) -> Self {
         Self(RawIndexSet::with_hasher(hasher))
     }
 
-    /// Creates an empty set with at least the given capacity that uses the
-    /// supplied `hasher`.
     #[inline(always)]
     pub fn with_capacity_and_hasher(capacity: usize, hasher: S) -> Self {
         Self(RawIndexSet::with_capacity_and_hasher(capacity, hasher))
     }
 
-    /// Consumes the wrapper and returns the underlying [`RawIndexSet`].
     #[inline(always)]
     pub fn into_inner(self) -> RawIndexSet<T, S> {
         self.0
     }
 }
-
-// ── Deref / DerefMut ─────────────────────────────────────────────────────────
 
 impl<T, S> Deref for AxIndexSet<T, S> {
     type Target = RawIndexSet<T, S>;
@@ -290,8 +220,6 @@ impl<T, S> DerefMut for AxIndexSet<T, S> {
         &mut self.0
     }
 }
-
-// ── Standard traits ───────────────────────────────────────────────────────────
 
 impl<T> Default for AxIndexSet<T, BuildHasherDefault<AxHasher>> {
     #[inline]
@@ -321,8 +249,6 @@ impl<T: Hash + Eq, S: BuildHasher> PartialEq for AxIndexSet<T, S> {
 
 impl<T: Hash + Eq, S: BuildHasher> Eq for AxIndexSet<T, S> {}
 
-// ── FromIterator / Extend ─────────────────────────────────────────────────────
-
 impl<T: Hash + Eq> FromIterator<T> for AxIndexSet<T, BuildHasherDefault<AxHasher>> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let iter = iter.into_iter();
@@ -339,8 +265,6 @@ impl<T: Hash + Eq, S: BuildHasher> Extend<T> for AxIndexSet<T, S> {
         self.0.extend(iter);
     }
 }
-
-// ── IntoIterator ──────────────────────────────────────────────────────────────
 
 impl<T, S> IntoIterator for AxIndexSet<T, S> {
     type Item = T;
@@ -362,8 +286,6 @@ impl<'a, T, S> IntoIterator for &'a AxIndexSet<T, S> {
     }
 }
 
-// ── From conversions ──────────────────────────────────────────────────────────
-
 impl<T, S> From<RawIndexSet<T, S>> for AxIndexSet<T, S> {
     #[inline]
     fn from(inner: RawIndexSet<T, S>) -> Self {
@@ -378,43 +300,30 @@ impl<T, S> From<AxIndexSet<T, S>> for RawIndexSet<T, S> {
     }
 }
 
-// ── Free constructor functions ────────────────────────────────────────────────
-//
-// Convenience aliases for the most common construction patterns.
-// These are thin wrappers around `AxIndexMap::new()` etc.
-
-/// Creates an empty [`AxIndexMap`] using the default [`AxHasher`].
 #[inline(always)]
 pub fn new_map<K, V>() -> AxIndexMap<K, V> {
     AxIndexMap::new()
 }
 
-/// Creates an [`AxIndexMap`] pre-allocated to at least `capacity` entries.
 #[inline(always)]
 pub fn map_with_capacity<K, V>(capacity: usize) -> AxIndexMap<K, V> {
     AxIndexMap::with_capacity(capacity)
 }
 
-/// Creates an empty [`AxIndexSet`] using the default [`AxHasher`].
 #[inline(always)]
 pub fn new_set<T>() -> AxIndexSet<T> {
     AxIndexSet::new()
 }
 
-/// Creates an [`AxIndexSet`] pre-allocated to at least `capacity` entries.
 #[inline(always)]
 pub fn set_with_capacity<T>(capacity: usize) -> AxIndexSet<T> {
     AxIndexSet::with_capacity(capacity)
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use core::hash::BuildHasherDefault;
-
-    // ── AxIndexMap constructors ───────────────────────────────────────────────
 
     #[test]
     fn map_constructors() {
@@ -524,8 +433,6 @@ mod tests {
         assert_eq!(raw["x"], 99);
     }
 
-    // ── Type alias: IndexMap ──────────────────────────────────────────────────
-
     #[test]
     fn alias_indexmap_basic() {
         let mut map: IndexMap<&str, u32> = RawIndexMap::with_hasher(BuildHasherDefault::default());
@@ -543,8 +450,6 @@ mod tests {
             .collect::<RawIndexMap<_, _, BuildHasherDefault<AxHasher>>>();
         assert_eq!(map.len(), 3);
     }
-
-    // ── AxIndexSet constructors ───────────────────────────────────────────────
 
     #[test]
     fn set_constructors() {
@@ -618,8 +523,6 @@ mod tests {
         let raw: RawIndexSet<u64, BuildHasherDefault<AxHasher>> = ax.into();
         assert!(raw.contains(&42));
     }
-
-    // ── Type alias: IndexSet ──────────────────────────────────────────────────
 
     #[test]
     fn alias_indexset_basic() {

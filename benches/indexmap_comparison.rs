@@ -1,29 +1,10 @@
-//! Criterion benchmarks: `AxIndexMap` vs `indexmap::IndexMap` (default SipHash).
-//!
-//! Scenarios (N = 100 000 items)
-//! ──────────────────────────────
-//! 1. **Insert**            — fill an empty map (u64 keys and String keys).
-//! 2. **Lookup / hit**      — 100 k lookups where every key is present.
-//! 3. **Lookup / mixed**    — 100 k lookups with ~50 % hits / 50 % misses.
-//! 4. **Iteration**         — full scan, accumulate checksum.
-//! 5. **Index access**      — 100 k positional (`get_index`) lookups.
-//!                            This is unique to IndexMap and has no HashMap
-//!                            equivalent.
-//!
-//! Run:
-//!   cargo bench --bench indexmap_comparison
-//!
-//! HTML reports → target/criterion/
-
 use std::hint::black_box;
 use std::time::Duration;
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use indexmap::IndexMap as StdIndexMap; // default SipHash hasher
+use indexmap::IndexMap as StdIndexMap;
 
 use axhash_indexmap::{AxIndexMap, map_with_capacity};
-
-// ── Configuration ─────────────────────────────────────────────────────────────
 
 const N: usize = 100_000;
 const SEED: u64 = 0xabcd_ef01_2345_6789;
@@ -34,8 +15,6 @@ fn configured_criterion() -> Criterion {
         .warm_up_time(Duration::from_secs(2))
         .sample_size(100)
 }
-
-// ── SplitMix64 PRNG (no external dependency) ─────────────────────────────────
 
 struct SplitMix64(u64);
 
@@ -61,10 +40,7 @@ fn string_keys(n: usize, seed: u64) -> Vec<String> {
         .collect()
 }
 
-// ── 1. Insert ─────────────────────────────────────────────────────────────────
-
 fn bench_insert(c: &mut Criterion) {
-    // --- u64 keys ---
     {
         let keys = u64_keys(N, SEED);
         let mut group = c.benchmark_group("insert/u64");
@@ -93,7 +69,6 @@ fn bench_insert(c: &mut Criterion) {
         group.finish();
     }
 
-    // --- String keys ---
     {
         let keys = string_keys(N, SEED);
         let mut group = c.benchmark_group("insert/string");
@@ -123,13 +98,10 @@ fn bench_insert(c: &mut Criterion) {
     }
 }
 
-// ── 2 & 3. Lookup (hit / mixed) ───────────────────────────────────────────────
-
 fn bench_lookup(c: &mut Criterion) {
     let insert_keys = u64_keys(N, SEED);
     let absent_keys = u64_keys(N, SEED ^ 0xffff_ffff_ffff_ffff);
 
-    // 50 % hit, 50 % miss — interleaved so branch prediction stays honest.
     let mixed_keys: Vec<u64> = insert_keys
         .iter()
         .zip(absent_keys.iter())
@@ -139,7 +111,6 @@ fn bench_lookup(c: &mut Criterion) {
     let ax_map: AxIndexMap<u64, u64> = insert_keys.iter().map(|&k| (k, k)).collect();
     let std_map: StdIndexMap<u64, u64> = insert_keys.iter().map(|&k| (k, k)).collect();
 
-    // --- hit ---
     {
         let mut group = c.benchmark_group("lookup/hit");
         group.throughput(Throughput::Elements(N as u64));
@@ -171,7 +142,6 @@ fn bench_lookup(c: &mut Criterion) {
         group.finish();
     }
 
-    // --- mixed ---
     {
         let mut group = c.benchmark_group("lookup/mixed");
         group.throughput(Throughput::Elements(mixed_keys.len() as u64));
@@ -204,8 +174,6 @@ fn bench_lookup(c: &mut Criterion) {
     }
 }
 
-// ── 4. Iteration ──────────────────────────────────────────────────────────────
-
 fn bench_iter(c: &mut Criterion) {
     let insert_keys = u64_keys(N, SEED);
 
@@ -237,13 +205,6 @@ fn bench_iter(c: &mut Criterion) {
 
     group.finish();
 }
-
-// ── 5. Positional (index) access ──────────────────────────────────────────────
-//
-// `get_index(i)` is a capability unique to IndexMap — there is no equivalent
-// in `std::collections::HashMap`.  We benchmark it to verify that the axhash
-// hasher swap does not slow down this path (which doesn't use the hasher at
-// all — it's a pure Vec lookup).
 
 fn bench_index_access(c: &mut Criterion) {
     let insert_keys = u64_keys(N, SEED);
@@ -283,8 +244,6 @@ fn bench_index_access(c: &mut Criterion) {
 
     group.finish();
 }
-
-// ── Entry point ───────────────────────────────────────────────────────────────
 
 criterion_group!(
     name    = benches;
