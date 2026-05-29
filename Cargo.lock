@@ -46,16 +46,16 @@ checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
 name = "axhash-core"
-version = "0.12.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "998b9707c63eb1aa9a907d5bbaa641daaccdfda238448e52760a37e279d5e215"
+checksum = "7049ecf8c3dcc381d5e94ccef57a085fd0038aa640876a8761c60089113e454a"
 dependencies = [
  "getrandom",
 ]
 
 [[package]]
 name = "axhash-indexmap"
-version = "0.1.3"
+version = "1.0.0"
 dependencies = [
  "axhash-core",
  "criterion",
