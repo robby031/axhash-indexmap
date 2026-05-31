@@ -3,7 +3,7 @@
 Fast insertion-ordered `IndexMap` / `IndexSet` powered by [`indexmap`](https://crates.io/crates/indexmap) and [`axhash`](https://crates.io/crates/axhash).
 
 - Deterministic insertion-order iteration
-- Fast AES-accelerated hashing
+- Fast hashing
 - `IndexMap` + `IndexSet` compatible API
 - `no_std + alloc` support
 - Serde-friendly type aliases
